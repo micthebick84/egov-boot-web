@@ -77,7 +77,7 @@
 	</h2>
 
 	<form id="detailForm" name="detailForm" th:object="${sampleVO}">
-	<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+	<input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 	<input type="hidden" th:id="searchCondition" th:name="searchCondition" th:value="${sampleVO.searchCondition}" />
 	<input type="hidden" th:id="searchKeyword" th:name="searchKeyword" th:value="${sampleVO.searchKeyword}" />
 	<input type="hidden" th:id="pageIndex" th:name="pageIndex" th:value="${sampleVO.pageIndex}" />

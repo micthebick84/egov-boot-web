@@ -11,6 +11,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
@@ -59,8 +60,11 @@ public class SecurityConfig {
         JwtCookieAuthenticationFilter jwtFilter =
                 new JwtCookieAuthenticationFilter(jwtDecoder, refreshService, cookieUtils, props);
 
+        // CSRF는 비활성화: JWT 쿠키 자체가 인증 경계이며 SameSite=Lax로 cross-site POST 차단됨.
+        // Spring Security 6.5 STATELESS + CookieCsrfTokenRepository는 Thymeleaf 폼 토큰과
+        // 쿠키 토큰 동기화 문제가 있어 해당 조합을 회피.
         http
-                .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/css/**", "/js/**", "/img/**", "/fonts/**", "/error/**", "/favicon.ico")

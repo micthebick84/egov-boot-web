@@ -1,5 +1,10 @@
 server:
   port: 8081
+  servlet:
+    session:
+      cookie:
+        # localhost에서 netis-auth(9000)와 쿠키 이름 충돌(JSESSIONID 덮어쓰기)을 회피
+        name: EGOV_SESSION
 
 spring:
   main:
