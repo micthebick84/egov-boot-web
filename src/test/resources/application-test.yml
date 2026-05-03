@@ -1,0 +1,19 @@
+server:
+  port: 0
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+
+app:
+  auth:
+    cookie:
+      secure: false
+      same-site-default: Lax
+      same-site-strict: Strict
+      access-token-name: egov_access_token
+      refresh-token-name: egov_refresh_token
+      id-token-name: egov_id_token
+      access-token-max-age-seconds: 3600
+      refresh-token-max-age-seconds: 604800
+    post-logout-redirect-uri: http://localhost:8081/
