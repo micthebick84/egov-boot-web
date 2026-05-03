@@ -22,6 +22,22 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
 
+/**
+ * 매 요청에서 {@code egov_access_token} 쿠키를 검증해 stateless 인증을 수행한다.
+ *
+ * <p>네 가지 경로가 있으며 모두 filter chain을 한 번씩 호출한다:
+ * <ol>
+ *   <li><b>쿠키 없음</b> — SecurityContext 변경 없음, 그대로 chain 진행.</li>
+ *   <li><b>유효한 JWT</b> — {@code JwtAuthenticationToken}을 SecurityContext에 설정.</li>
+ *   <li><b>만료된 JWT + 유효한 refresh</b> — {@link TokenRefreshService}로 갱신 후
+ *       신규 access/refresh/id 쿠키 발행 + 인증 설정.</li>
+ *   <li><b>변조 또는 refresh 실패</b> — 모든 인증 쿠키 클리어(Max-Age=0) + SecurityContext 비움.</li>
+ * </ol>
+ *
+ * <p>만료/변조 구분은 {@code JWTParser.parse()}로 raw {@code exp} 클레임만 읽어 판단한다
+ * (서명 검증 없음). 보안 경계는 여전히 {@link JwtDecoder}이며, 이 메서드는 단지
+ * "refresh를 시도할지" 결정하는 디스패처 역할만 한다.
+ */
 public class JwtCookieAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtCookieAuthenticationFilter.class);
@@ -94,7 +110,7 @@ public class JwtCookieAuthenticationFilter extends OncePerRequestFilter {
         try {
             Date exp = JWTParser.parse(rawToken).getJWTClaimsSet().getExpirationTime();
             return exp != null && exp.toInstant().isBefore(Instant.now());
-        } catch (Exception ignored) {
+        } catch (java.text.ParseException ignored) {
             return false;
         }
     }

@@ -133,4 +133,81 @@ class JwtCookieAuthenticationFilterTest {
         assertThat(setCookies).anyMatch(c -> c.contains("egov_refresh_token=") && c.contains("Max-Age=0"));
         assertThat(setCookies).anyMatch(c -> c.contains("egov_id_token=") && c.contains("Max-Age=0"));
     }
+
+    @Test
+    void refreshedJwtSignedByWrongKeyClearsCookies() throws Exception {
+        String expiredJwt = TestKeyFactory.signAccessToken("admin", issuer,
+                List.of("ROLE_ADMIN"), Instant.now().minusSeconds(60));
+        // Simulate auth server returning a token signed by a DIFFERENT key
+        com.nimbusds.jose.jwk.RSAKey wrongKey = new com.nimbusds.jose.jwk.gen.RSAKeyGenerator(2048)
+                .keyID("wrong-key").generate();
+        com.nimbusds.jwt.JWTClaimsSet claims = new com.nimbusds.jwt.JWTClaimsSet.Builder()
+                .subject("admin").issuer(issuer).audience("egov-app")
+                .issueTime(java.util.Date.from(Instant.now()))
+                .expirationTime(java.util.Date.from(Instant.now().plusSeconds(3600)))
+                .jwtID(java.util.UUID.randomUUID().toString())
+                .claim("username", "admin").claim("authorities", List.of("ROLE_ADMIN"))
+                .build();
+        com.nimbusds.jose.JWSHeader header = new com.nimbusds.jose.JWSHeader.Builder(
+                com.nimbusds.jose.JWSAlgorithm.RS256)
+                .type(com.nimbusds.jose.JOSEObjectType.JWT)
+                .keyID(wrongKey.getKeyID()).build();
+        com.nimbusds.jwt.SignedJWT wrongSignedJwt = new com.nimbusds.jwt.SignedJWT(header, claims);
+        wrongSignedJwt.sign(new com.nimbusds.jose.crypto.RSASSASigner(wrongKey));
+        String wrongKeyJwt = wrongSignedJwt.serialize();
+
+        when(refreshService.refresh("rt-good")).thenReturn(Optional.of(
+                new TokenRefreshService.TokenResponse(wrongKeyJwt, "new-rt", "new-it", 3600, "Bearer")
+        ));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie("egov_access_token", expiredJwt),
+                new Cookie("egov_refresh_token", "rt-good"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        List<String> setCookies = response.getHeaders("Set-Cookie");
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_access_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_refresh_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_id_token=") && c.contains("Max-Age=0"));
+    }
+
+    @Test
+    void structurallyValidButForgedJwtClearsCookiesWithoutRefreshAttempt() throws Exception {
+        // Token signed by a different key with future exp — JwtDecoder fails, isExpiredToken should say NOT expired
+        com.nimbusds.jose.jwk.RSAKey forgedKey = new com.nimbusds.jose.jwk.gen.RSAKeyGenerator(2048)
+                .keyID("forged-key").generate();
+        com.nimbusds.jwt.JWTClaimsSet claims = new com.nimbusds.jwt.JWTClaimsSet.Builder()
+                .subject("admin").issuer(issuer).audience("egov-app")
+                .issueTime(java.util.Date.from(Instant.now()))
+                .expirationTime(java.util.Date.from(Instant.now().plusSeconds(3600))) // future
+                .jwtID(java.util.UUID.randomUUID().toString())
+                .claim("username", "admin").claim("authorities", List.of("ROLE_ADMIN"))
+                .build();
+        com.nimbusds.jose.JWSHeader header = new com.nimbusds.jose.JWSHeader.Builder(
+                com.nimbusds.jose.JWSAlgorithm.RS256)
+                .type(com.nimbusds.jose.JOSEObjectType.JWT)
+                .keyID(forgedKey.getKeyID()).build();
+        com.nimbusds.jwt.SignedJWT forgedJwt = new com.nimbusds.jwt.SignedJWT(header, claims);
+        forgedJwt.sign(new com.nimbusds.jose.crypto.RSASSASigner(forgedKey));
+        String forgedToken = forgedJwt.serialize();
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie("egov_access_token", forgedToken),
+                new Cookie("egov_refresh_token", "rt-still-valid"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(refreshService, never()).refresh(any());
+        List<String> setCookies = response.getHeaders("Set-Cookie");
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_access_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_refresh_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_id_token=") && c.contains("Max-Age=0"));
+    }
 }
