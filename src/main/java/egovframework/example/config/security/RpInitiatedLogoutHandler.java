@@ -25,17 +25,14 @@ import java.util.Optional;
 public class RpInitiatedLogoutHandler implements LogoutSuccessHandler {
 
     private final String issuerUri;
-    private final String postLogoutRedirectUri;
     private final CookieUtils cookieUtils;
     private final AuthCookieProperties props;
 
     public RpInitiatedLogoutHandler(
             @Value("${spring.security.oauth2.client.provider.netis-auth.issuer-uri}") String issuerUri,
-            @Value("${app.auth.post-logout-redirect-uri}") String postLogoutRedirectUri,
             CookieUtils cookieUtils,
             AuthCookieProperties props) {
         this.issuerUri = issuerUri;
-        this.postLogoutRedirectUri = postLogoutRedirectUri;
         this.cookieUtils = cookieUtils;
         this.props = props;
     }
@@ -51,7 +48,7 @@ public class RpInitiatedLogoutHandler implements LogoutSuccessHandler {
         cookieUtils.clearCookie(response, props.getCookie().getRefreshTokenName(), props.getCookie().isSecure());
         cookieUtils.clearCookie(response, props.getCookie().getIdTokenName(), props.getCookie().isSecure());
 
-        String encodedRedirectUri = UriUtils.encode(postLogoutRedirectUri, StandardCharsets.UTF_8);
+        String encodedRedirectUri = UriUtils.encode(props.getPostLogoutRedirectUri(), StandardCharsets.UTF_8);
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(issuerUri)

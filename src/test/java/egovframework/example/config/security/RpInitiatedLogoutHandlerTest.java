@@ -4,8 +4,8 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.util.UriUtils;
 
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,9 +15,16 @@ class RpInitiatedLogoutHandlerTest {
     private final String issuer = "http://localhost:9000";
     private final String postLogoutRedirect = "http://localhost:8081/";
     private final CookieUtils cookieUtils = new CookieUtils();
-    private final AuthCookieProperties props = new AuthCookieProperties();
+    private final AuthCookieProperties props = setupProps();
+
+    private AuthCookieProperties setupProps() {
+        AuthCookieProperties p = new AuthCookieProperties();
+        p.setPostLogoutRedirectUri(postLogoutRedirect);
+        return p;
+    }
+
     private final RpInitiatedLogoutHandler handler =
-            new RpInitiatedLogoutHandler(issuer, postLogoutRedirect, cookieUtils, props);
+            new RpInitiatedLogoutHandler(issuer, cookieUtils, props);
 
     @Test
     void redirectsToAuthLogoutWithIdTokenHintAndPostLogoutRedirect() throws Exception {
@@ -31,7 +38,7 @@ class RpInitiatedLogoutHandlerTest {
         assertThat(redirect).startsWith("http://localhost:9000/logout?");
         assertThat(redirect).contains("id_token_hint=id-token-value");
         assertThat(redirect).contains("post_logout_redirect_uri=" +
-                URLEncoder.encode(postLogoutRedirect, StandardCharsets.UTF_8));
+                UriUtils.encode(postLogoutRedirect, StandardCharsets.UTF_8));
     }
 
     @Test
