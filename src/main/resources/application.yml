@@ -6,3 +6,33 @@ spring:
     allow-bean-definition-overriding: true
   jpa:
     open-in-view: false
+  security:
+    oauth2:
+      client:
+        registration:
+          netis-auth:
+            client-id: egov-app
+            client-secret: ${OAUTH_CLIENT_SECRET:secret456}
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            client-authentication-method: client_secret_basic
+        provider:
+          netis-auth:
+            issuer-uri: ${AUTH_ISSUER_URI:http://localhost:9000}
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_ISSUER_URI:http://localhost:9000}
+
+app:
+  auth:
+    cookie:
+      secure: false
+      same-site-default: Lax
+      same-site-strict: Strict
+      access-token-name: egov_access_token
+      refresh-token-name: egov_refresh_token
+      id-token-name: egov_id_token
+      access-token-max-age-seconds: 3600
+      refresh-token-max-age-seconds: 604800
+    post-logout-redirect-uri: ${POST_LOGOUT_REDIRECT:http://localhost:8081/}
