@@ -28,3 +28,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Local Gradle daemon overrides (machine-specific JVM pin)
+gradle.properties
