@@ -3,6 +3,7 @@ package egovframework.example.config.security;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,6 +30,7 @@ public class TokenRefreshService {
     private final ConcurrentHashMap<String, CompletableFuture<Optional<TokenResponse>>> inFlight =
             new ConcurrentHashMap<>();
 
+    @Autowired
     public TokenRefreshService(RestClient.Builder restClientBuilder,
                                @Value("${spring.security.oauth2.client.provider.netis-auth.issuer-uri}")
                                String issuerUri,
