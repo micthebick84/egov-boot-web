@@ -1,0 +1,81 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'egovframework.com'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    // log4j2 사용을 위해 logback 기본 의존성 제외 (pom의 starter-web exclusion과 동일 효과)
+    all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://maven.egovframe.go.kr/maven/'
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.egovframe.boot:egovframe-boot-starter-parent:5.0.0'
+    }
+}
+
+dependencies {
+    // 표준프레임워크 실행환경
+    implementation 'org.egovframe.rte:egovframe-rte-ptl-mvc'
+    implementation 'org.egovframe.rte:egovframe-rte-psl-dataaccess'
+    implementation 'org.egovframe.rte:egovframe-rte-fdl-idgnr'
+    implementation 'org.egovframe.rte:egovframe-rte-fdl-property'
+    implementation 'org.egovframe.rte:egovframe-rte-ptl-reactive'
+
+    // Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // DB / 기타 라이브러리
+    implementation 'org.apache.commons:commons-dbcp2'
+    runtimeOnly 'org.hsqldb:hsqldb'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.seleniumhq.selenium:selenium-java'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        showExceptions true
+        showCauses true
+        showStackTraces true
+    }
+}
