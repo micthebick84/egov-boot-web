@@ -138,9 +138,10 @@ class OAuth2LoginSuccessHandlerTest {
         request.setSession(session);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        // Use the same RequestCache impl as the handler to seed the session
+        // Use the same RequestCache instance as the handler to seed the session
         org.springframework.security.web.savedrequest.HttpSessionRequestCache cache =
                 new org.springframework.security.web.savedrequest.HttpSessionRequestCache();
+        handler.setRequestCache(cache);
         cache.saveRequest(request, response);
 
         handler.onAuthenticationSuccess(request, response, authentication);
