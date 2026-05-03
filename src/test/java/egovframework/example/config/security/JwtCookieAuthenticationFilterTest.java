@@ -92,6 +92,7 @@ class JwtCookieAuthenticationFilterTest {
         List<String> setCookies = response.getHeaders("Set-Cookie");
         assertThat(setCookies).anyMatch(c -> c.contains("egov_access_token=" + freshJwt));
         assertThat(setCookies).anyMatch(c -> c.contains("egov_refresh_token=new-rt"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_id_token=new-it"));
     }
 
     @Test
@@ -112,6 +113,7 @@ class JwtCookieAuthenticationFilterTest {
         List<String> setCookies = response.getHeaders("Set-Cookie");
         assertThat(setCookies).anyMatch(c -> c.contains("egov_access_token=") && c.contains("Max-Age=0"));
         assertThat(setCookies).anyMatch(c -> c.contains("egov_refresh_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_id_token=") && c.contains("Max-Age=0"));
     }
 
     @Test
@@ -126,5 +128,9 @@ class JwtCookieAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(refreshService, never()).refresh(any());
+        List<String> setCookies = response.getHeaders("Set-Cookie");
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_access_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_refresh_token=") && c.contains("Max-Age=0"));
+        assertThat(setCookies).anyMatch(c -> c.contains("egov_id_token=") && c.contains("Max-Age=0"));
     }
 }
