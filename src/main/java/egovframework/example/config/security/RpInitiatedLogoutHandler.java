@@ -18,7 +18,8 @@ import java.util.Optional;
  * RP-initiated logout per OIDC spec:
  * 1. egov 인증 쿠키(access/refresh/id) 모두 Max-Age=0으로 클리어
  * 2. id_token이 존재하면 id_token_hint으로 포함하여
- *    {@code <issuer>/logout?id_token_hint=...&post_logout_redirect_uri=...} 로 302
+ *    {@code <issuer>/connect/logout?id_token_hint=...&post_logout_redirect_uri=...} 로 302
+ *    ({@code /connect/logout} = OIDC end_session_endpoint, Spring Authorization Server 표준 경로)
  * 3. netis-auth가 자체 세션 삭제 후 post_logout_redirect_uri로 다시 302
  */
 @Component
@@ -52,7 +53,7 @@ public class RpInitiatedLogoutHandler implements LogoutSuccessHandler {
 
         UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(issuerUri)
-                .path("/logout")
+                .path("/connect/logout")
                 .queryParam("post_logout_redirect_uri", encodedRedirectUri);
 
         idToken.ifPresent(t -> builder.queryParam("id_token_hint", t));

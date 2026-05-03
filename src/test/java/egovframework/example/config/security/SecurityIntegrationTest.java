@@ -51,7 +51,7 @@ class SecurityIntegrationTest {
                           "token_endpoint":"%s/oauth2/token",
                           "jwks_uri":"%s/oauth2/jwks",
                           "userinfo_endpoint":"%s/userinfo",
-                          "end_session_endpoint":"%s/logout",
+                          "end_session_endpoint":"%s/connect/logout",
                           "id_token_signing_alg_values_supported":["RS256"],
                           "subject_types_supported":["public"],
                           "response_types_supported":["code"]
@@ -141,13 +141,15 @@ class SecurityIntegrationTest {
     }
 
     @Test
-    void postWithoutCsrfTokenReturns403() throws Exception {
+    void csrfDisabledAllowsAuthenticatedPosts() throws Exception {
+        // 메인 체인 STATELESS + CSRF 비활성. JWT 쿠키가 인증 경계이며,
+        // SameSite=Lax가 cross-site POST를 차단한다. CSRF 토큰 없이도 인증된 POST는 통과.
         String jwt = TestKeyFactory.signAccessToken(
                 "admin", issuerUri, List.of("ROLE_ADMIN"), Instant.now().plusSeconds(600));
 
         mockMvc.perform(post("/addSample.do")
                         .cookie(new jakarta.servlet.http.Cookie("egov_access_token", jwt)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().is2xxSuccessful());
     }
 
     @Test
@@ -163,7 +165,7 @@ class SecurityIntegrationTest {
                 .andReturn();
 
         String redirect = result.getResponse().getRedirectedUrl();
-        assertThat(redirect).startsWith(issuerUri + "/logout");
+        assertThat(redirect).startsWith(issuerUri + "/connect/logout");
         assertThat(redirect).contains("id_token_hint=id-token-xyz");
 
         List<String> setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);

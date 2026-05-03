@@ -35,7 +35,7 @@ class RpInitiatedLogoutHandlerTest {
         handler.onLogoutSuccess(request, response, null);
 
         String redirect = response.getRedirectedUrl();
-        assertThat(redirect).startsWith("http://localhost:9000/logout?");
+        assertThat(redirect).startsWith("http://localhost:9000/connect/logout?");
         assertThat(redirect).contains("id_token_hint=id-token-value");
         assertThat(redirect).contains("post_logout_redirect_uri=" +
                 UriUtils.encode(postLogoutRedirect, StandardCharsets.UTF_8));
@@ -63,7 +63,7 @@ class RpInitiatedLogoutHandlerTest {
         handler.onLogoutSuccess(request, response, null);
 
         String redirect = response.getRedirectedUrl();
-        assertThat(redirect).startsWith("http://localhost:9000/logout?");
+        assertThat(redirect).startsWith("http://localhost:9000/connect/logout?");
         assertThat(redirect).doesNotContain("id_token_hint=");
         assertThat(redirect).contains("post_logout_redirect_uri=");
     }
