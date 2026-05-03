@@ -3,8 +3,10 @@ package egovframework.example.config.security;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -67,6 +69,14 @@ class SecurityIntegrationTest {
         if (wireMock != null) wireMock.stop();
     }
 
+    @AfterEach
+    void cleanUp() {
+        SecurityContextHolder.clearContext();
+        if (wireMock != null) {
+            wireMock.resetRequests();
+        }
+    }
+
     @DynamicPropertySource
     static void registerProps(DynamicPropertyRegistry registry) {
         registry.add("spring.security.oauth2.client.registration.netis-auth.client-id", () -> "egov-app");
@@ -115,11 +125,19 @@ class SecurityIntegrationTest {
                          "expires_in":3600,"token_type":"Bearer"}
                         """, fresh))));
 
-        mockMvc.perform(get("/")
+        var result = mockMvc.perform(get("/")
                         .cookie(new jakarta.servlet.http.Cookie("egov_access_token", expired))
                         .cookie(new jakarta.servlet.http.Cookie("egov_refresh_token", "rt-good")))
                 .andExpect(status().isOk())
-                .andExpect(header().exists(HttpHeaders.SET_COOKIE));
+                .andReturn();
+
+        List<String> cookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+        assertThat(cookies).anyMatch(c -> c.contains("egov_access_token=" + fresh));
+        assertThat(cookies).anyMatch(c -> c.contains("egov_refresh_token=new-rt"));
+        assertThat(cookies).anyMatch(c -> c.contains("egov_id_token=new-it"));
+
+        wireMock.verify(1, com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor(
+                com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo("/oauth2/token")));
     }
 
     @Test
