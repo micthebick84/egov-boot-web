@@ -1,6 +1,8 @@
 package egovframework.example.config.security;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -10,6 +12,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -18,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class TokenRefreshService {
+
+    private static final Logger log = LoggerFactory.getLogger(TokenRefreshService.class);
 
     private final RestClient restClient;
     private final String basicAuth;
@@ -38,7 +43,7 @@ public class TokenRefreshService {
     TokenRefreshService(RestClient restClient, String clientId, String clientSecret) {
         this.restClient = restClient;
         this.basicAuth = Base64.getEncoder()
-                .encodeToString((clientId + ":" + clientSecret).getBytes());
+                .encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
     }
 
     public Optional<TokenResponse> refresh(String refreshToken) {
@@ -48,7 +53,12 @@ public class TokenRefreshService {
         );
         try {
             return future.get(15, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Token refresh interrupted", e);
+            return Optional.empty();
         } catch (Exception e) {
+            log.warn("Token refresh failed waiting for response", e);
             return Optional.empty();
         } finally {
             inFlight.remove(refreshToken, future);
@@ -70,8 +80,11 @@ public class TokenRefreshService {
                     .body(TokenResponse.class);
             return Optional.ofNullable(body);
         } catch (RestClientResponseException ex) {
+            log.warn("Token refresh rejected by auth server: status={}, body={}",
+                    ex.getStatusCode(), ex.getResponseBodyAsString());
             return Optional.empty();
         } catch (Exception ex) {
+            log.warn("Token refresh failed", ex);
             return Optional.empty();
         }
     }
