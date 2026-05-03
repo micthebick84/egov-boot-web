@@ -10,17 +10,23 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.RequestCache;
+import org.springframework.security.web.savedrequest.SavedRequest;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
 @Component
-public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
+
+    private static final String DEFAULT_TARGET_URL = "/";
 
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final CookieUtils cookieUtils;
     private final AuthCookieProperties props;
+    private final RequestCache requestCache = new HttpSessionRequestCache();
 
     public OAuth2LoginSuccessHandler(OAuth2AuthorizedClientService authorizedClientService,
                                      CookieUtils cookieUtils,
@@ -28,7 +34,6 @@ public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSu
         this.authorizedClientService = authorizedClientService;
         this.cookieUtils = cookieUtils;
         this.props = props;
-        setDefaultTargetUrl("/");
     }
 
     @Override
@@ -37,6 +42,15 @@ public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSu
                                         Authentication authentication)
             throws IOException, ServletException {
 
+        // 1) Resolve the redirect target BEFORE invalidating the session
+        String targetUrl = DEFAULT_TARGET_URL;
+        SavedRequest savedRequest = requestCache.getRequest(request, response);
+        if (savedRequest != null) {
+            targetUrl = savedRequest.getRedirectUrl();
+            requestCache.removeRequest(request, response);
+        }
+
+        // 2) Write tokens to cookies
         if (authentication instanceof OAuth2AuthenticationToken oauthToken) {
             String registrationId = oauthToken.getAuthorizedClientRegistrationId();
             String principalName = oauthToken.getName();
@@ -72,11 +86,13 @@ public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSu
             }
         }
 
+        // 3) Invalidate the handshake session (no longer needed; we are now stateless)
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
         }
 
-        super.onAuthenticationSuccess(request, response, authentication);
+        // 4) Redirect to the resolved target
+        response.sendRedirect(targetUrl);
     }
 }

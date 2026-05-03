@@ -109,4 +109,45 @@ class OAuth2LoginSuccessHandlerTest {
         assertThat(response.getStatus()).isEqualTo(302);
         assertThat(response.getRedirectedUrl()).isEqualTo("/");
     }
+
+    @Test
+    void redirectsToSavedRequestUrlWhenPresentEvenAfterSessionInvalidation() throws Exception {
+        OidcIdToken idToken = OidcIdToken.withTokenValue("idt").subject("u")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).build();
+        OidcUser user = new DefaultOidcUser(List.of(), idToken);
+        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
+                user, user.getAuthorities(), "netis-auth");
+        ClientRegistration registration = ClientRegistration.withRegistrationId("netis-auth")
+                .clientId("egov-app").clientSecret("s")
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("http://localhost:8081/login/oauth2/code/netis-auth")
+                .scope(Set.of("openid")).authorizationUri("http://x").tokenUri("http://x").build();
+        OAuth2AccessToken at = new OAuth2AccessToken(
+                OAuth2AccessToken.TokenType.BEARER, "at", Instant.now(),
+                Instant.now().plusSeconds(3600));
+        when(authorizedClientService.loadAuthorizedClient(any(), any()))
+                .thenReturn(new OAuth2AuthorizedClient(registration, "u", at));
+
+        // Simulate a saved request: pre-populate the HttpSessionRequestCache
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/egovSampleList.do");
+        request.setRequestURI("/egovSampleList.do");
+        request.setServerPort(8081);
+        request.setScheme("http");
+        request.setServerName("localhost");
+        MockHttpSession session = new MockHttpSession();
+        request.setSession(session);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // Use the same RequestCache impl as the handler to seed the session
+        org.springframework.security.web.savedrequest.HttpSessionRequestCache cache =
+                new org.springframework.security.web.savedrequest.HttpSessionRequestCache();
+        cache.saveRequest(request, response);
+
+        handler.onAuthenticationSuccess(request, response, authentication);
+
+        // Saved request was /egovSampleList.do — handler must redirect there, NOT to "/"
+        assertThat(response.getStatus()).isEqualTo(302);
+        assertThat(response.getRedirectedUrl()).contains("/egovSampleList.do");
+        assertThat(session.isInvalid()).isTrue();
+    }
 }
